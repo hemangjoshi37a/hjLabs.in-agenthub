@@ -66,6 +66,12 @@ func (s *Server) setupRoutes() {
 	// Public registration (no auth, rate-limited by IP)
 	s.mux.HandleFunc("POST /api/register", s.handleRegister)
 
+	// Stats endpoint (no auth, public)
+	s.mux.HandleFunc("GET /api/stats", s.handleStats)
+
+	// Agents list (auth required)
+	s.mux.Handle("GET /api/agents", authMw(http.HandlerFunc(s.handleListAgents)))
+
 	// Health check (no auth)
 	s.mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
@@ -77,7 +83,21 @@ func (s *Server) setupRoutes() {
 
 func (s *Server) ListenAndServe() error {
 	log.Printf("listening on %s", s.config.ListenAddr)
-	return http.ListenAndServe(s.config.ListenAddr, s.mux)
+	return http.ListenAndServe(s.config.ListenAddr, corsMiddleware(s.mux))
+}
+
+// corsMiddleware adds permissive CORS headers so the UI can be served from any origin.
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 // JSON helpers

@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+
+	"agenthub/internal/db"
 )
 
 func (s *Server) handleCreateAgent(w http.ResponseWriter, r *http.Request) {
@@ -49,6 +51,27 @@ func (s *Server) handleCreateAgent(w http.ResponseWriter, r *http.Request) {
 		"id":      req.ID,
 		"api_key": apiKey,
 	})
+}
+
+func (s *Server) handleStats(w http.ResponseWriter, r *http.Request) {
+	stats, err := s.db.GetStats()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "database error")
+		return
+	}
+	writeJSON(w, http.StatusOK, stats)
+}
+
+func (s *Server) handleListAgents(w http.ResponseWriter, r *http.Request) {
+	agents, err := s.db.ListAgents()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "database error")
+		return
+	}
+	if agents == nil {
+		agents = []db.Agent{}
+	}
+	writeJSON(w, http.StatusOK, agents)
 }
 
 var agentIDRe = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9._-]{0,62}$`)

@@ -164,9 +164,13 @@ func (r *Repo) git(args ...string) error {
 func (r *Repo) gitOutput(args ...string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
+	absPath, err := filepath.Abs(r.Path)
+	if err != nil {
+		absPath = r.Path
+	}
 	cmd := exec.CommandContext(ctx, "git", args...)
-	cmd.Dir = r.Path
-	cmd.Env = append(os.Environ(), "GIT_DIR="+r.Path)
+	cmd.Dir = absPath
+	cmd.Env = append(os.Environ(), "GIT_DIR="+absPath)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr

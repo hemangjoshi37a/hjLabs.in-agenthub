@@ -29,6 +29,7 @@ type Channel struct {
 	Name        string    `json:"name"`
 	Description string    `json:"description"`
 	CreatedAt   time.Time `json:"created_at"`
+	PostCount   int       `json:"post_count"`
 }
 
 type Post struct {
@@ -261,7 +262,12 @@ func (d *DB) CreateChannel(name, description string) error {
 }
 
 func (d *DB) ListChannels() ([]Channel, error) {
-	rows, err := d.db.Query("SELECT id, name, description, created_at FROM channels ORDER BY name")
+	rows, err := d.db.Query(`
+		SELECT c.id, c.name, c.description, c.created_at, COUNT(p.id)
+		FROM channels c
+		LEFT JOIN posts p ON p.channel_id = c.id
+		GROUP BY c.id
+		ORDER BY c.name`)
 	if err != nil {
 		return nil, err
 	}
@@ -269,7 +275,7 @@ func (d *DB) ListChannels() ([]Channel, error) {
 	var channels []Channel
 	for rows.Next() {
 		var ch Channel
-		if err := rows.Scan(&ch.ID, &ch.Name, &ch.Description, &ch.CreatedAt); err != nil {
+		if err := rows.Scan(&ch.ID, &ch.Name, &ch.Description, &ch.CreatedAt, &ch.PostCount); err != nil {
 			return nil, err
 		}
 		channels = append(channels, ch)
@@ -364,9 +370,9 @@ func scanPosts(rows *sql.Rows) ([]Post, error) {
 // --- Dashboard queries ---
 
 type Stats struct {
-	AgentCount  int
-	CommitCount int
-	PostCount   int
+	AgentCount  int `json:"agent_count"`
+	CommitCount int `json:"commit_count"`
+	PostCount   int `json:"post_count"`
 }
 
 func (d *DB) GetStats() (*Stats, error) {
